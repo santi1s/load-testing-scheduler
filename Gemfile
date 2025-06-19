@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 source 'https://rubygems.org'
 
 ruby '~> 3.2.0'
@@ -12,6 +14,6 @@ group :development, :test do
 end
 
 group :test do
-  gem 'timecop', '~> 0.9' # For time-based testing
   gem 'simplecov', '~> 0.22' # Code coverage
+  gem 'timecop', '~> 0.9' # For time-based testing
 end
