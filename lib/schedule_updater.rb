@@ -81,16 +81,16 @@ class ScheduleUpdater
 
   def self.add_schedule_with_options(processor, options)
     processor.add_schedule({
-      datetime: options[:datetime],
-      team: options[:team],
-      duration: options[:duration],
-      test_type: options[:test_type],
-      contact: options[:contact],
-      slack_channel: options[:slack_channel],
-      app_version: options[:app_version],
-      expected_load: options[:expected_load],
-      priority: options[:priority]
-    })
+                             datetime: options[:datetime],
+                             team: options[:team],
+                             duration: options[:duration],
+                             test_type: options[:test_type],
+                             contact: options[:contact],
+                             slack_channel: options[:slack_channel],
+                             app_version: options[:app_version],
+                             expected_load: options[:expected_load],
+                             priority: options[:priority]
+                           })
   end
 
   def self.output_success(schedule)

@@ -1,0 +1,35 @@
+# RuboCop configuration for load-testing-scheduler
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+
+# Allow longer methods for option parsing - this is a legitimate use case
+Metrics/MethodLength:
+  Exclude:
+    - 'lib/schedule_updater.rb' # CLI option parsing methods
+  Max: 10
+
+# Allow larger blocks for OptionParser configuration
+Metrics/BlockLength:
+  Exclude:
+    - 'lib/schedule_updater.rb' # OptionParser configuration
+  Max: 25
+
+# Allow higher complexity for option parsing - it's inherently complex
+Metrics/AbcSize:
+  Exclude:
+    - 'lib/schedule_updater.rb' # CLI option parsing
+  Max: 17
+
+# These files are CLI utilities where some complexity is expected
+Metrics/ClassLength:
+  Max: 100
+
+# Documentation requirements
+Style/Documentation:
+  Enabled: true
+
+# Line length - GitHub standard
+Layout/LineLength:
+  Max: 100

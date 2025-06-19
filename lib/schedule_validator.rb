@@ -10,11 +10,11 @@ class ScheduleValidator
   def validate_time_slot(requested_start, duration_minutes, _team, schedules = nil)
     schedules ||= []
     time_range = parse_time_range(requested_start, duration_minutes)
-    
+
     check_schedule_conflicts(time_range, schedules)
     validate_business_hours(time_range[:start], time_range[:end])
     validate_duration(duration_minutes)
-    
+
     true
   end
 
@@ -23,7 +23,7 @@ class ScheduleValidator
   def parse_time_range(requested_start, duration_minutes)
     start_time = requested_start.is_a?(String) ? Time.parse(requested_start) : requested_start
     end_time = start_time + (duration_minutes * 60)
-    
+
     {
       start: start_time,
       end: end_time,
@@ -33,16 +33,24 @@ class ScheduleValidator
   end
 
   def check_schedule_conflicts(time_range, schedules)
-    conflicts = schedules.select do |schedule|
-      schedule_start = Time.parse(schedule['datetime'])
-      schedule_end = schedule_start + (schedule['duration'] * 60)
+    conflicts = find_conflicting_schedules(time_range, schedules)
+    raise_conflict_error(conflicts) if conflicts.any?
+  end
 
-      # Check for overlap with buffer
-      time_range[:buffered_start] < schedule_end && time_range[:buffered_end] > schedule_start
+  def find_conflicting_schedules(time_range, schedules)
+    schedules.select do |schedule|
+      overlaps_with_buffer?(time_range, schedule)
     end
+  end
 
-    return unless conflicts.any?
+  def overlaps_with_buffer?(time_range, schedule)
+    schedule_start = Time.parse(schedule['datetime'])
+    schedule_end = schedule_start + (schedule['duration'] * 60)
+    
+    time_range[:buffered_start] < schedule_end && time_range[:buffered_end] > schedule_start
+  end
 
+  def raise_conflict_error(conflicts)
     conflict_details = conflicts.map do |c|
       "#{c['team']} (#{c['datetime']} - #{c['duration']}min)"
     end.join(', ')

@@ -32,8 +32,8 @@ class ScheduleProcessor
 
   def add_schedule(schedule_params)
     schedules = load_schedules
-    validate_time_slot(schedule_params[:datetime], schedule_params[:duration], 
-                      schedule_params[:team], schedules)
+    validate_time_slot(schedule_params[:datetime], schedule_params[:duration],
+                       schedule_params[:team], schedules)
 
     new_schedule = create_schedule_entry(schedule_params)
     insert_schedule_chronologically(schedules, new_schedule)
@@ -109,12 +109,21 @@ class ScheduleProcessor
   end
 
   def create_schedule_entry(params)
+    base_schedule(params).merge(metadata_fields(params))
+  end
+
+  def base_schedule(params)
     {
       'datetime' => params[:datetime],
       'team' => params[:team],
       'duration' => params[:duration],
       'test_type' => params[:test_type],
-      'contact' => params[:contact],
+      'contact' => params[:contact]
+    }
+  end
+
+  def metadata_fields(params)
+    {
       'slack_channel' => params[:slack_channel],
       'app_version' => params[:app_version],
       'expected_load' => params[:expected_load],
