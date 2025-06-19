@@ -5,6 +5,7 @@ require 'json'
 require 'time'
 require_relative 'schedule_validator'
 
+# Processes scheduled load tests and manages the schedule file
 class ScheduleProcessor
   SCHEDULE_FILE = 'config/schedules.json'
 
@@ -16,19 +17,12 @@ class ScheduleProcessor
   def process_current_schedule
     schedules = load_schedules
     current_time = Time.now.utc
-
     active_tests = find_active_tests(schedules, current_time)
 
-    if active_tests.any?
-      puts "Active tests found: #{active_tests.size}"
-      active_tests.each { |test| execute_test(test) }
-      cleanup_completed_tests(schedules, current_time)
-      save_schedules(schedules)
-      0 # Success
-    else
-      puts 'No active tests scheduled for current time'
-      1 # No tests to run
-    end
+    return process_active_tests(active_tests, schedules, current_time) if active_tests.any?
+
+    puts 'No active tests scheduled for current time'
+    1 # No tests to run
   end
 
   def validate_time_slot(requested_start, duration_minutes, team, schedules = nil)
@@ -36,37 +30,13 @@ class ScheduleProcessor
     @validator.validate_time_slot(requested_start, duration_minutes, team, schedules)
   end
 
-  def add_schedule(datetime, team, duration, test_type, contact, options = {})
+  def add_schedule(schedule_params)
     schedules = load_schedules
+    validate_time_slot(schedule_params[:datetime], schedule_params[:duration], 
+                      schedule_params[:team], schedules)
 
-    # Validate the time slot
-    validate_time_slot(datetime, duration, team, schedules)
-
-    new_schedule = {
-      'datetime' => datetime,
-      'team' => team,
-      'duration' => duration,
-      'test_type' => test_type,
-      'contact' => contact,
-      'slack_channel' => options[:slack_channel],
-      'app_version' => options[:app_version],
-      'expected_load' => options[:expected_load],
-      'priority' => options[:priority] || 'P2',
-      'status' => 'scheduled',
-      'created_at' => Time.now.utc.iso8601
-    }
-
-    # Insert in chronological order
-    insert_position = schedules.find_index do |schedule|
-      Time.parse(schedule['datetime']) > Time.parse(datetime)
-    end
-
-    if insert_position
-      schedules.insert(insert_position, new_schedule)
-    else
-      schedules.push(new_schedule)
-    end
-
+    new_schedule = create_schedule_entry(schedule_params)
+    insert_schedule_chronologically(schedules, new_schedule)
     save_schedules(schedules)
     new_schedule
   end
@@ -130,4 +100,39 @@ class ScheduleProcessor
     end
   end
 
+  def process_active_tests(active_tests, schedules, current_time)
+    puts "Active tests found: #{active_tests.size}"
+    active_tests.each { |test| execute_test(test) }
+    cleanup_completed_tests(schedules, current_time)
+    save_schedules(schedules)
+    0 # Success
+  end
+
+  def create_schedule_entry(params)
+    {
+      'datetime' => params[:datetime],
+      'team' => params[:team],
+      'duration' => params[:duration],
+      'test_type' => params[:test_type],
+      'contact' => params[:contact],
+      'slack_channel' => params[:slack_channel],
+      'app_version' => params[:app_version],
+      'expected_load' => params[:expected_load],
+      'priority' => params[:priority] || 'P2',
+      'status' => 'scheduled',
+      'created_at' => Time.now.utc.iso8601
+    }
+  end
+
+  def insert_schedule_chronologically(schedules, new_schedule)
+    insert_position = schedules.find_index do |schedule|
+      Time.parse(schedule['datetime']) > Time.parse(new_schedule['datetime'])
+    end
+
+    if insert_position
+      schedules.insert(insert_position, new_schedule)
+    else
+      schedules.push(new_schedule)
+    end
+  end
 end

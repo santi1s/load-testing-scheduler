@@ -4,38 +4,17 @@
 require_relative 'schedule_processor'
 require 'optparse'
 
+# Command-line interface for updating load test schedules
 class ScheduleUpdater
   def self.run(args = ARGV)
     options = parse_options(args)
-
     processor = ScheduleProcessor.new
 
     begin
-      schedule = processor.add_schedule(
-        options[:datetime],
-        options[:team],
-        options[:duration],
-        options[:test_type],
-        options[:contact],
-        {
-          slack_channel: options[:slack_channel],
-          app_version: options[:app_version],
-          expected_load: options[:expected_load],
-          priority: options[:priority]
-        }
-      )
-
-      puts '✅ Schedule added successfully:'
-      puts JSON.pretty_generate(schedule)
-
-      # Output for GitHub Actions
-      puts '::set-output name=schedule_added::true'
-      puts "::set-output name=team::#{schedule['team']}"
-      puts "::set-output name=datetime::#{schedule['datetime']}"
+      schedule = add_schedule_with_options(processor, options)
+      output_success(schedule)
     rescue StandardError => e
-      puts "❌ Error adding schedule: #{e.message}"
-      puts '::set-output name=schedule_added::false'
-      puts "::set-output name=error::#{e.message}"
+      output_error(e)
       exit 1
     end
   end
@@ -98,6 +77,34 @@ class ScheduleUpdater
     end
 
     options
+  end
+
+  def self.add_schedule_with_options(processor, options)
+    processor.add_schedule({
+      datetime: options[:datetime],
+      team: options[:team],
+      duration: options[:duration],
+      test_type: options[:test_type],
+      contact: options[:contact],
+      slack_channel: options[:slack_channel],
+      app_version: options[:app_version],
+      expected_load: options[:expected_load],
+      priority: options[:priority]
+    })
+  end
+
+  def self.output_success(schedule)
+    puts '✅ Schedule added successfully:'
+    puts JSON.pretty_generate(schedule)
+    puts '::set-output name=schedule_added::true'
+    puts "::set-output name=team::#{schedule['team']}"
+    puts "::set-output name=datetime::#{schedule['datetime']}"
+  end
+
+  def self.output_error(error)
+    puts "❌ Error adding schedule: #{error.message}"
+    puts '::set-output name=schedule_added::false'
+    puts "::set-output name=error::#{error.message}"
   end
 end
 
