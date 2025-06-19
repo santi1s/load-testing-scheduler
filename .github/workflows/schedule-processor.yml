@@ -1,0 +1,89 @@
+name: Process Load Test Schedule
+
+on:
+  schedule:
+    # Run every 15 minutes during business hours (9 AM - 6 PM UTC, Mon-Fri)
+    - cron: '*/15 9-18 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even outside business hours'
+        type: boolean
+        default: false
+
+jobs:
+  process-schedule:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: schedule-processor
+      cancel-in-progress: false
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Process current schedule
+        id: process
+        run: |
+          cd lib
+          ruby schedule_processor.rb
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update schedule file if changes
+        if: steps.process.outputs.exit_code == '0'
+        run: |
+          if [[ `git status --porcelain` ]]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add config/schedules.json
+            git commit -m "Update schedule after processing tests [skip ci]"
+            git push
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "❌ Schedule processor failed"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+
+  cleanup-old-schedules:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * 1' # Weekly cleanup on Mondays at 2 AM
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Archive old completed tests
+        run: |
+          ruby scripts/archive_old_schedules.rb
+        
+      - name: Commit cleanup changes
+        run: |
+          if [[ `git status --porcelain` ]]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "Archive old completed schedules [skip ci]"
+            git push
+          fi

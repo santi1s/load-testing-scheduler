@@ -1,0 +1,232 @@
+name: '[MANUAL] Schedule Load Test'
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_name:
+        description: 'Team name'
+        required: true
+        type: choice
+        options:
+          - 'team-alpha'
+          - 'team-beta'
+          - 'team-gamma'
+          - 'team-delta'
+          - 'sre-team'
+      
+      test_datetime:
+        description: 'Test start time (YYYY-MM-DDTHH:MM:SSZ)'
+        required: true
+        type: string
+      
+      duration_minutes:
+        description: 'Test duration in minutes'
+        required: true
+        type: choice
+        options:
+          - '30'
+          - '60'
+          - '90'
+          - '120'
+          - '180'
+          - '240'
+      
+      test_type:
+        description: 'Test type'
+        required: true
+        type: choice
+        options:
+          - 'load'
+          - 'stress'
+          - 'spike'
+          - 'volume'
+          - 'endurance'
+      
+      contact_person:
+        description: 'Contact person (@username)'
+        required: true
+        type: string
+      
+      slack_channel:
+        description: 'Slack channel for notifications'
+        required: false
+        type: string
+        default: '#preprod-status'
+      
+      app_version:
+        description: 'Application version to test'
+        required: false
+        type: string
+      
+      expected_load:
+        description: 'Expected load (e.g., "1000 users" or "500 req/sec")'
+        required: false
+        type: string
+      
+      priority:
+        description: 'Priority level'
+        required: true
+        type: choice
+        options:
+          - 'P2'
+          - 'P1'
+          - 'P0'
+        default: 'P2'
+
+permissions:
+  contents: write
+  issues: read
+  actions: read
+
+jobs:
+  validate-team-access:
+    runs-on: ubuntu-latest
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    
+    steps:
+      - name: Check team authorization
+        id: check
+        run: |
+          # Get the user who triggered the workflow
+          ACTOR="${{ github.actor }}"
+          TEAM="${{ inputs.team_name }}"
+          
+          # In a real implementation, you'd check team membership via GitHub API
+          # For demo purposes, we'll allow all users
+          echo "authorized=true" >> $GITHUB_OUTPUT
+          
+          # Example of real team validation:
+          # gh api "/orgs/your-org/teams/${TEAM}/members" --jq ".[] | select(.login == \"${ACTOR}\") | .login"
+
+  schedule-test:
+    runs-on: ubuntu-latest
+    needs: validate-team-access
+    if: needs.validate-team-access.outputs.authorized == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Add schedule
+        id: add_schedule
+        run: |
+          ruby lib/schedule_updater.rb \
+            --datetime "${{ inputs.test_datetime }}" \
+            --team "${{ inputs.team_name }}" \
+            --duration "${{ inputs.duration_minutes }}" \
+            --test-type "${{ inputs.test_type }}" \
+            --contact "${{ inputs.contact_person }}" \
+            --slack-channel "${{ inputs.slack_channel }}" \
+            --app-version "${{ inputs.app_version }}" \
+            --expected-load "${{ inputs.expected_load }}" \
+            --priority "${{ inputs.priority }}"
+
+      - name: Commit schedule update
+        if: success()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add config/schedules.json
+          git commit -m "Add load test schedule for ${{ inputs.team_name }} at ${{ inputs.test_datetime }}"
+          git push
+
+      - name: Notify team channel
+        if: success() && inputs.slack_channel != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "🧪 Load test scheduled for ${{ inputs.team_name }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Load Test Scheduled* 📅\n*Team:* ${{ inputs.team_name }}\n*Start:* ${{ inputs.test_datetime }}\n*Duration:* ${{ inputs.duration_minutes }} minutes\n*Type:* ${{ inputs.test_type }}\n*Contact:* ${{ inputs.contact_person }}\n*Priority:* ${{ inputs.priority }}"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "Scheduled by: ${{ github.actor }} | Workflow: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    }
+                  ]
+                }
+              ]
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_PREPROD }}
+
+      - name: Comment on related issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find the related issue by searching for the team and date
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'load-test,scheduling',
+              state: 'open'
+            });
+            
+            const relatedIssue = issues.find(issue => 
+              issue.title.includes('${{ inputs.team_name }}') && 
+              issue.title.includes('${{ inputs.test_datetime }}'.split('T')[0])
+            );
+            
+            if (relatedIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: relatedIssue.number,
+                body: `✅ **Load test scheduled successfully!**
+                
+                **Details:**
+                - **Start Time:** ${{ inputs.test_datetime }}
+                - **Duration:** ${{ inputs.duration_minutes }} minutes  
+                - **Test Type:** ${{ inputs.test_type }}
+                - **Priority:** ${{ inputs.priority }}
+                
+                **Next Steps:**
+                1. You'll receive a Slack notification in ${{ inputs.slack_channel }} when the test starts
+                2. Monitor the test progress in your team's dashboard
+                3. Results will be available after completion
+                
+                **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+                `
+              });
+              
+              // Close the issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: relatedIssue.number,
+                state: 'closed',
+                labels: ['load-test', 'scheduling', 'completed']
+              });
+            }
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [validate-team-access, schedule-test]
+    if: failure()
+    
+    steps:
+      - name: Notify on failure
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "❌ Failed to schedule load test for ${{ inputs.team_name }} at ${{ inputs.test_datetime }}"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_ALERTS }}

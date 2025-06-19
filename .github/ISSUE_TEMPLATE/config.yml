@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Emergency Load Test Support
+    url: https://your-company.slack.com/channels/sre-emergency
+    about: For critical issues requiring immediate load testing support
+  - name: Load Testing Documentation
+    url: https://github.com/your-org/load-testing-scheduler/blob/main/docs/TEAM_GUIDE.md
+    about: Team guide for using the load testing scheduler

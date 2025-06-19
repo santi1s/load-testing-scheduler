@@ -1,0 +1,138 @@
+name: Load Test Time Slot Request
+description: Request a time slot for load testing in the shared preprod environment
+title: "[TEAM] Load Test - [DATE] [TIME]"
+labels: ["load-test", "scheduling", "preprod"]
+body:
+  - type: dropdown
+    id: team
+    attributes:
+      label: Team
+      description: Which team is requesting the time slot?
+      options:
+        - team-alpha
+        - team-beta  
+        - team-gamma
+        - team-delta
+        - sre-team
+    validations:
+      required: true
+
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Person
+      description: GitHub username of the primary contact
+      placeholder: "@username"
+    validations:
+      required: true
+
+  - type: input
+    id: slack_channel
+    attributes:
+      label: Slack Channel
+      description: Team slack channel for notifications
+      placeholder: "#team-alpha"
+    validations:
+      required: true
+
+  - type: input
+    id: requested_datetime
+    attributes:
+      label: Requested Date/Time (UTC)
+      description: When do you want to start the test?
+      placeholder: "2025-01-20T14:00:00Z"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: duration
+    attributes:
+      label: Duration
+      description: How long will the test run?
+      options:
+        - "30 minutes"
+        - "60 minutes"
+        - "90 minutes"
+        - "120 minutes"
+        - "180 minutes"
+        - "240 minutes"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test_type
+    attributes:
+      label: Test Type
+      description: What kind of load test are you running?
+      options:
+        - load
+        - stress
+        - spike
+        - volume
+        - endurance
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Priority level for this test
+      options:
+        - P2 - Normal
+        - P1 - High
+        - P0 - Critical/Emergency
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: Application Version
+      description: Version/commit of the application to test
+      placeholder: "v1.2.3 or commit-sha"
+    validations:
+      required: true
+
+  - type: input
+    id: expected_load
+    attributes:
+      label: Expected Load
+      description: Expected number of concurrent users or requests/second
+      placeholder: "1000 concurrent users or 500 req/sec"
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_scenario
+    attributes:
+      label: Test Scenario
+      description: Brief description of what you'll be testing
+      placeholder: "User registration flow with payment processing..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: Success Criteria
+      description: How will you measure if the test was successful?
+      placeholder: "95% of requests under 2s response time, 0% error rate..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Confirm you've completed these steps
+      options:
+        - label: I've checked the schedule for conflicts
+          required: true
+        - label: I've coordinated with my team
+          required: true
+        - label: I have test data prepared
+          required: true
+        - label: I understand the SLA (48h advance booking, max 4h duration)
+          required: true

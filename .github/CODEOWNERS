@@ -1,0 +1,24 @@
+# Global ownership for the load testing scheduler
+* @your-org/sre-team
+
+# GitHub Actions workflows require SRE approval
+.github/workflows/ @your-org/sre-team @your-org/platform-team
+
+# Core scheduling logic requires careful review
+lib/schedule_processor.rb @your-org/sre-team
+lib/schedule_updater.rb @your-org/sre-team
+
+# Configuration files
+config/ @your-org/sre-team
+*.yml @your-org/sre-team
+*.yaml @your-org/sre-team
+
+# Documentation can be updated by team leads
+docs/ @your-org/sre-team @your-org/team-alpha-leads @your-org/team-beta-leads
+
+# Issue templates can be updated by SRE and team leads
+.github/ISSUE_TEMPLATE/ @your-org/sre-team @your-org/team-alpha-leads @your-org/team-beta-leads
+
+# Ruby dependencies require SRE approval
+Gemfile @your-org/sre-team
+Gemfile.lock @your-org/sre-team

@@ -1,0 +1,66 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Run RuboCop
+        run: bundle exec rubocop
+
+      - name: Run RSpec tests
+        run: bundle exec rspec
+
+      - name: Test schedule validation
+        run: |
+          # Test the schedule validation with sample data
+          mkdir -p config
+          echo '[]' > config/schedules.json
+          
+          # Test adding a valid schedule
+          ruby lib/schedule_updater.rb \
+            --datetime "2025-12-25T10:00:00Z" \
+            --team "team-alpha" \
+            --duration 60 \
+            --test-type "load" \
+            --contact "@test-user"
+          
+          # Test conflict detection (this should fail)
+          if ruby lib/schedule_updater.rb \
+            --datetime "2025-12-25T10:30:00Z" \
+            --team "team-beta" \
+            --duration 60 \
+            --test-type "stress" \
+            --contact "@test-user2"; then
+            echo "❌ Conflict detection failed - this should have been rejected"
+            exit 1
+          else
+            echo "✅ Conflict detection working correctly"
+          fi
+
+  actionlint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v1
+        with:
+          fail-on-error: true
