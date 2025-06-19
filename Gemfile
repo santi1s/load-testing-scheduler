@@ -9,7 +9,7 @@ gem 'optparse', '~> 0.4'
 
 group :development, :test do
   gem 'rspec', '~> 3.12'
-  gem 'rubocop', '~> 1.57'
+  gem 'rubocop', '~> 1.68'
   gem 'rubocop-rspec', '~> 2.25'
 end
 

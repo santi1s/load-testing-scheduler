@@ -46,7 +46,7 @@ class ScheduleValidator
   def overlaps_with_buffer?(time_range, schedule)
     schedule_start = Time.parse(schedule['datetime'])
     schedule_end = schedule_start + (schedule['duration'] * 60)
-    
+
     time_range[:buffered_start] < schedule_end && time_range[:buffered_end] > schedule_start
   end
 
@@ -78,7 +78,9 @@ class ScheduleValidator
   def validate_duration(duration_minutes)
     max_duration = 4 * 60 # 4 hours in minutes
 
-    raise "Test duration cannot exceed #{max_duration / 60} hours" if duration_minutes > max_duration
+    if duration_minutes > max_duration
+      raise "Test duration cannot exceed #{max_duration / 60} hours"
+    end
 
     return unless duration_minutes < 15
 

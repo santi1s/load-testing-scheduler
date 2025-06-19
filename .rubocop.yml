@@ -3,6 +3,7 @@
 AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
+  SuggestExtensions: false
 
 # Allow longer methods for option parsing - this is a legitimate use case
 Metrics/MethodLength:
@@ -24,7 +25,11 @@ Metrics/AbcSize:
 
 # These files are CLI utilities where some complexity is expected
 Metrics/ClassLength:
-  Max: 100
+  Max: 110
+
+# Allow non-predicate method names for domain-specific operations
+Naming/PredicateMethod:
+  Enabled: false
 
 # Documentation requirements
 Style/Documentation:
